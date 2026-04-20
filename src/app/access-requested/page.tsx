@@ -1,11 +1,11 @@
 "use client";
 
+import { Suspense, useState } from "react";
 import { Clock, Shield } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { signOutClient } from "../../lib/firebase/auth";
 
-export default function AccessRequestedPage() {
+function AccessRequestedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
@@ -80,5 +80,15 @@ export default function AccessRequestedPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AccessRequestedPage() {
+  return (
+    <Suspense
+      fallback={<main className="min-h-[100svh] bg-gradient-to-b from-neutral-950 via-black to-neutral-950" />}
+    >
+      <AccessRequestedContent />
+    </Suspense>
   );
 }
