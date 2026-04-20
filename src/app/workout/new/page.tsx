@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Clock, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -12,7 +12,7 @@ import { subscribeUserRoutines } from "../../../lib/db/users";
 import { addWorkoutForUser } from "../../../lib/db/workouts";
 import type { Exercise, RoutineExerciseRef, WorkoutExerciseLog, WorkoutSet } from "../../../lib/db/types";
 
-export default function NewWorkoutPage() {
+function NewWorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -703,6 +703,14 @@ export default function NewWorkoutPage() {
         </div>
       ) : null}
     </AppShell>
+  );
+}
+
+export default function NewWorkoutPage() {
+  return (
+    <Suspense fallback={<main className="min-h-[100svh] bg-neutral-950" />}>
+      <NewWorkoutContent />
+    </Suspense>
   );
 }
 
