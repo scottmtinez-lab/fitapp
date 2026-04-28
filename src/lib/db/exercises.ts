@@ -4,6 +4,7 @@ import type { Firestore } from "firebase/firestore";
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -86,4 +87,8 @@ export async function updateExercise(db: Firestore, exerciseId: string, input: U
   if (typeof input.equipment === "string") payload.equipment = input.equipment.trim();
 
   await updateDoc(doc(db, "exercises", exerciseId), payload);
+}
+
+export async function deleteExercise(db: Firestore, exerciseId: string) {
+  await deleteDoc(doc(db, "exercises", exerciseId));
 }

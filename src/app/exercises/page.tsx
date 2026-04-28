@@ -1,11 +1,11 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Dumbbell, Pencil, Plus, Search, X } from "lucide-react";
+import { Check, Dumbbell, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import AppShell from "../_components/AppShell";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { getClientDb } from "../../lib/firebase/firestore";
-import { createExercise, subscribeExercises, updateExercise } from "../../lib/db/exercises";
+import { createExercise, deleteExercise, subscribeExercises, updateExercise } from "../../lib/db/exercises";
 import type { Exercise } from "../../lib/db/types";
 
 export default function ExercisesPage() {
@@ -29,6 +29,7 @@ export default function ExercisesPage() {
   const [editTrackingType, setEditTrackingType] = useState<"time" | "reps" | "weight_reps">("weight_reps");
   const [editEquipment, setEditEquipment] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
 
   useEffect(() => {
     const db = getClientDb();
@@ -103,6 +104,7 @@ export default function ExercisesPage() {
   function closeEdit() {
     setEditing(null);
     setSavingEdit(false);
+    setDeletingExerciseId(null);
     setError(null);
   }
 
@@ -131,6 +133,22 @@ export default function ExercisesPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update exercise.");
       setSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteExercise(exercise: Exercise) {
+    const db = getClientDb();
+    if (!db) return;
+
+    setDeletingExerciseId(exercise.id);
+    setError(null);
+    try {
+      await deleteExercise(db, exercise.id);
+      if (editing?.id === exercise.id) closeEdit();
+      else setDeletingExerciseId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete exercise.");
+      setDeletingExerciseId(null);
     }
   }
 
@@ -256,148 +274,149 @@ export default function ExercisesPage() {
 
         <div className="space-y-3">
           {filtered.map((exercise) => (
-            <div
-              key={exercise.id}
-              className="bg-black p-4 rounded-2xl border border-neutral-800 flex items-center justify-between"
-            >
-              <div>
-                <p className="text-white font-semibold">{exercise.name}</p>
-                <p className="text-xs text-neutral-500">
-                  {(exercise.bodyPart || exercise.muscleGroup || "—") +
-                    " • " +
-                    (exercise.category || "—") +
-                    " • " +
-                    (exercise.equipment || "—")}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => openEdit(exercise)}
-                  className="p-2 rounded-xl bg-black/60 border border-neutral-800 text-neutral-300 hover:bg-white/5"
-                  aria-label={`Edit ${exercise.name}`}
-                  title="Edit"
-                >
-                  <Pencil className="w-5 h-5" />
-                </button>
-                <div className="p-2 rounded-xl bg-black/60 border border-neutral-800 text-indigo-300">
-                  <Dumbbell className="w-5 h-5" />
+            <div key={exercise.id} className="bg-black p-4 rounded-2xl border border-neutral-800">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-white font-semibold">{exercise.name}</p>
+                  <p className="text-xs text-neutral-500">
+                    {(exercise.bodyPart || exercise.muscleGroup || "—") +
+                      " • " +
+                      (exercise.category || "—") +
+                      " • " +
+                      (exercise.equipment || "—")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(exercise)}
+                    className="p-2 rounded-xl bg-black/60 border border-neutral-800 text-neutral-300 hover:bg-white/5"
+                    aria-label={`Edit ${exercise.name}`}
+                    title="Edit"
+                  >
+                    <Pencil className="w-5 h-5" />
+                  </button>
+                  <div className="p-2 rounded-xl bg-black/60 border border-neutral-800 text-indigo-300">
+                    <Dumbbell className="w-5 h-5" />
+                  </div>
                 </div>
               </div>
+
+              {editing?.id === exercise.id ? (
+                <div className="mt-4 rounded-2xl border border-neutral-800 bg-black/70 p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-white font-bold">Edit exercise</p>
+                    <button
+                      type="button"
+                      className="p-2 bg-black rounded-full hover:bg-white/5 text-neutral-200 border border-neutral-800"
+                      onClick={closeEdit}
+                      aria-label="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {error ? (
+                    <div className="bg-rose-950/30 border border-rose-900/50 text-rose-200 rounded-2xl p-3 text-sm mb-4">
+                      {error}
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <p className="text-neutral-300 text-xs font-medium mb-1.5">Name</p>
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
+                        placeholder="Exercise name"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-neutral-300 text-xs font-medium mb-1.5">Body part</p>
+                        <input
+                          value={editBodyPart}
+                          onChange={(e) => setEditBodyPart(e.target.value)}
+                          placeholder="Full Body"
+                          className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-neutral-300 text-xs font-medium mb-1.5">Equipment</p>
+                        <input
+                          value={editEquipment}
+                          onChange={(e) => setEditEquipment(e.target.value)}
+                          placeholder="Barbell"
+                          className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-neutral-300 text-xs font-medium mb-1.5">Category</p>
+                        <input
+                          value={editCategory}
+                          onChange={(e) => setEditCategory(e.target.value)}
+                          placeholder="Strength"
+                          className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-neutral-300 text-xs font-medium mb-1.5">Tracking</p>
+                        <select
+                          value={editTrackingType}
+                          onChange={(e) =>
+                            setEditTrackingType(e.target.value as "time" | "reps" | "weight_reps")
+                          }
+                          className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white outline-none focus:border-indigo-500/60"
+                        >
+                          <option value="weight_reps">Weight + reps</option>
+                          <option value="reps">Reps</option>
+                          <option value="time">Time</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-neutral-300 text-xs font-medium mb-1.5">Duration (optional)</p>
+                      <input
+                        value={editDuration}
+                        onChange={(e) => setEditDuration(e.target.value)}
+                        placeholder={editTrackingType === "time" ? "e.g., 00:10:00" : "Leave blank"}
+                        className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteExercise(exercise)}
+                      disabled={savingEdit || deletingExerciseId === exercise.id}
+                      className="flex-1 bg-rose-600 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-rose-500 active:bg-rose-700 transition-colors rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-white shadow-lg shadow-rose-900/20"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      {deletingExerciseId === exercise.id ? "Deleting..." : "Delete"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveEdit()}
+                      disabled={savingEdit || deletingExerciseId === exercise.id || !editName.trim()}
+                      className="flex-1 bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-emerald-500 active:bg-emerald-700 transition-colors rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-white shadow-lg shadow-emerald-900/20"
+                    >
+                      <Check className="w-5 h-5" />
+                      {savingEdit ? "Saving..." : "Save changes"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
       </section>
-
-      {editing ? (
-        <div className="absolute inset-0 z-50 flex items-end sm:items-center justify-center">
-          <button
-            type="button"
-            aria-label="Close"
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm drawer-backdrop"
-            onClick={closeEdit}
-          />
-
-          <div className="relative w-full max-w-md bg-black border-t border-neutral-800 sm:border sm:rounded-2xl p-5 shadow-2xl drawer-in">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-white font-bold">Edit exercise</p>
-              <button
-                type="button"
-                className="p-2 bg-black rounded-full hover:bg-white/5 text-neutral-200 border border-neutral-800"
-                onClick={closeEdit}
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {error ? (
-              <div className="bg-rose-950/30 border border-rose-900/50 text-rose-200 rounded-2xl p-3 text-sm mb-4">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="space-y-3 mb-4">
-              <div>
-                <p className="text-neutral-300 text-xs font-medium mb-1.5">Name</p>
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
-                  placeholder="Exercise name"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-neutral-300 text-xs font-medium mb-1.5">Body part</p>
-                  <input
-                    value={editBodyPart}
-                    onChange={(e) => setEditBodyPart(e.target.value)}
-                    placeholder="Full Body"
-                    className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
-                  />
-                </div>
-                <div>
-                  <p className="text-neutral-300 text-xs font-medium mb-1.5">Equipment</p>
-                  <input
-                    value={editEquipment}
-                    onChange={(e) => setEditEquipment(e.target.value)}
-                    placeholder="Barbell"
-                    className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-neutral-300 text-xs font-medium mb-1.5">Category</p>
-                  <input
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    placeholder="Strength"
-                    className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
-                  />
-                </div>
-                <div>
-                  <p className="text-neutral-300 text-xs font-medium mb-1.5">Tracking</p>
-                  <select
-                    value={editTrackingType}
-                    onChange={(e) =>
-                      setEditTrackingType(e.target.value as "time" | "reps" | "weight_reps")
-                    }
-                    className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white outline-none focus:border-indigo-500/60"
-                  >
-                    <option value="weight_reps">Weight + reps</option>
-                    <option value="reps">Reps</option>
-                    <option value="time">Time</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-neutral-300 text-xs font-medium mb-1.5">Duration (optional)</p>
-                <input
-                  value={editDuration}
-                  onChange={(e) => setEditDuration(e.target.value)}
-                  placeholder={editTrackingType === "time" ? "e.g., 00:10:00" : "Leave blank"}
-                  className="w-full rounded-xl bg-black/70 border border-neutral-800 px-4 py-3 text-white placeholder:text-neutral-600 outline-none focus:border-indigo-500/60"
-                />
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void handleSaveEdit()}
-              disabled={savingEdit || !editName.trim()}
-              className="w-full bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-emerald-500 active:bg-emerald-700 transition-colors rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-white shadow-lg shadow-emerald-900/20"
-            >
-              <Check className="w-5 h-5" />
-              {savingEdit ? "Saving..." : "Save changes"}
-            </button>
-          </div>
-        </div>
-      ) : null}
     </AppShell>
   );
 }

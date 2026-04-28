@@ -46,6 +46,7 @@ export type WorkoutSet = {
   reps?: number;
   seconds?: number;
   unit?: "lb" | "kg";
+  setType?: "normal" | "warmup" | "superset";
   completedAt?: number;
   restSeconds?: number;
 };
